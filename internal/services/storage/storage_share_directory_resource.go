@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/go-azure-helpers/lang/response"
@@ -16,8 +17,8 @@ import (
 	"github.com/hashicorp/terraform-provider-azurerm/internal/services/storage/client"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/services/storage/helpers"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/services/storage/validate"
-	storageValidate "github.com/hashicorp/terraform-provider-azurerm/internal/services/storage/validate"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/tf/pluginsdk"
+	"github.com/hashicorp/terraform-provider-azurerm/internal/tf/validation"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/timeouts"
 	"github.com/jackofallops/giovanni/storage/2023-11-03/blob/accounts"
 	"github.com/jackofallops/giovanni/storage/2023-11-03/file/directories"
@@ -55,7 +56,7 @@ func resourceStorageShareDirectory() *pluginsdk.Resource {
 				Type:         pluginsdk.TypeString,
 				Required:     true,
 				ForceNew:     true,
-				ValidateFunc: storageValidate.StorageShareDataPlaneID,
+				ValidateFunc: validation.StringIsNotEmpty,
 			},
 
 			"metadata": MetaDataSchema(),
@@ -78,9 +79,19 @@ func resourceStorageShareDirectoryCreate(d *pluginsdk.ResourceData, meta interfa
 	var storageShareId *shares.ShareId
 	var err error
 	if v, ok := d.GetOk("storage_share_id"); ok && v.(string) != "" {
-		storageShareId, err = shares.ParseShareID(v.(string), storageClient.StorageDomainSuffix)
-		if err != nil {
-			return err
+		if strings.HasPrefix(v.(string), "/subscriptions/") {
+			segments := strings.Split(v.(string), "/")
+			storageShareId = &shares.ShareId{}
+			storageShareId.AccountId.AccountName = segments[8]
+			storageShareId.AccountId.SubDomainType = "file"
+			storageShareId.AccountId.DomainSuffix = "core.windows.net"
+			storageShareId.AccountId.IsEdgeZone = false
+			storageShareId.ShareName = segments[12]
+		} else {
+			storageShareId, err = shares.ParseShareID(v.(string), storageClient.StorageDomainSuffix)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
