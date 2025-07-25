@@ -76,7 +76,7 @@ func resourceStorageShareDirectoryCreate(d *pluginsdk.ResourceData, meta interfa
 	metaDataRaw := d.Get("metadata").(map[string]interface{})
 	metaData := ExpandMetaData(metaDataRaw)
 
-	var storageShareId *shares.ShareId
+	var storageShareId *shares.ShareId // TODO: remove this
 	var err error
 	if v, ok := d.GetOk("storage_share_id"); ok && v.(string) != "" {
 		if strings.HasPrefix(v.(string), "/subscriptions/") {
